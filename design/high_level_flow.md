@@ -43,12 +43,12 @@ flowchart TD
     %% Application Services
     subgraph "API Services"
         BLOCKAGE_API[Blockage Detection API<br/>🚫 Real-time alerts]
-        TRAFFIC_API[Traffic Pattern API<br/>🚦 Congestion data]
+        TRAFFIC_PATTERN[Traffic Pattern API<br/>🚦 Congestion data]
     end
     
     %% Frontend Applications
     subgraph "Frontend Applications"
-        DASHBOARD[Real-time Dashboard<br/>📊 Operations view]
+        DASHBOARD[Operations Dashboard<br/>📊 Operations view]
         MOBILE_APP[Mobile Application<br/>📱 Driver interface]
     end
     end
@@ -71,11 +71,11 @@ flowchart TD
 
     
     CASSANDRA --> BLOCKAGE_API
-    POSTGRES --> TRAFFIC_API
+    POSTGRES --> TRAFFIC_PATTERN
     
 
-    BLOCKAGE_API--> DASHBOARD
-    TRAFFIC_API --> MOBILE_APP
+    BLOCKAGE_API--> MOBILE_APP
+    TRAFFIC_PATTERN --> DASHBOARD
     
 
     
