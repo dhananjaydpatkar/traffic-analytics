@@ -24,37 +24,32 @@ flowchart TD
     end
     
     %% Stream Processing
-    subgraph "Real-time Processing"
-        SPARK_STREAM[Spark Streaming<br/>🔥 Micro-batch processing]
-        FLINK[Apache Flink<br/>⚡ Low-latency processing]
+    subgraph "Real-time Processing "
+        FLINK[Apache Flink<br/>⚡ Noise Reducer <br> Route Smoother]
     end
     
     %% Data Storage
     subgraph "Storage Layer"
         HDFS[S3<br/>🗃️ Raw data lake]
-        CASSANDRA[Cassandra<br/>💾 Distributed storage]
-        POSTGRES[PostgreSQL or Any Relational DB <br/>🐘 Processed data]
+        CASSANDRA[Cassandra<br/>💾 Data storage]
+        POSTGRES[PostgreSQL or <br> Any Relational DB <br/>🐘 Processed data]
     end
     
     %% Batch Processing
     subgraph "Batch Analytics"
         SPARK_BATCH[Spark Batch Jobs<br/>📊 Historical analysis]
-        ML_PIPELINE[ML Pipeline<br/>🤖 Route smoothing & patterns]
-        ETL[ETL Jobs<br/>🔄 Data transformation]
     end
     
     %% Application Services
     subgraph "API Services"
         BLOCKAGE_API[Blockage Detection API<br/>🚫 Real-time alerts]
         TRAFFIC_API[Traffic Pattern API<br/>🚦 Congestion data]
-        ROUTE_API[Route Smoothing API<br/>🛣️ Optimized paths]
     end
     
     %% Frontend Applications
     subgraph "Frontend Applications"
         DASHBOARD[Real-time Dashboard<br/>📊 Operations view]
         MOBILE_APP[Mobile Application<br/>📱 Driver interface]
-        BI_TOOLS[BI Tools<br/>📈 Operations reports]
     end
     end
 
@@ -65,29 +60,23 @@ flowchart TD
     MQTT --> KAFKA
     REST --> KAFKA
     
-    KAFKA --> SPARK_STREAM
     KAFKA --> FLINK
     
-    SPARK_STREAM --> CASSANDRA
-    SPARK_STREAM --> HDFS
+    FLINK --> HDFS
     FLINK --> CASSANDRA
     
     HDFS --> SPARK_BATCH
-    CASSANDRA --> ML_PIPELINE
-    CASSANDRA --> ETL
     
     SPARK_BATCH --> POSTGRES
-    ML_PIPELINE --> POSTGRES
-    ETL --> POSTGRES
-    
-    CASSANDRA --> BLOCKAGE_API
-    CASSANDRA --> TRAFFIC_API
-    POSTGRES --> ROUTE_API
 
     
-    BLOCKAGE_API --> DASHBOARD
+    CASSANDRA --> BLOCKAGE_API
+    POSTGRES --> TRAFFIC_API
+    
+
+    BLOCKAGE_API--> DASHBOARD
     TRAFFIC_API --> MOBILE_APP
-    ROUTE_API --> BI_TOOLS
+    
 
     
     %% Styling
