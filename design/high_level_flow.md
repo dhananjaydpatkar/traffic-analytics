@@ -85,7 +85,7 @@ flowchart TD
 - **Mobile Apps**: Smartphone applications that collect GPS data from drivers and send location updates via HTTP APIs
 
 ### Data Ingestion Layer
-- **MQTT Broker**: Lightweight messaging protocol optimized for IoT devices, handles real-time GPS data streams from vehicle sensors with low bandwidth overhead, <aws IoT>
+- **MQTT Broker**: Lightweight messaging protocol optimized for IoT devices, handles real-time GPS data streams from vehicle sensors with low bandwidth overhead, managed offering from aws IoT core.
 - **REST API Gateway**: HTTP-based API endpoint that receives GPS data from mobile applications and provides authentication, rate limiting, and data validation
 
 ### Message Streaming
