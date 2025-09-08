@@ -1,11 +1,12 @@
 package com.trafficanalyzer;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
@@ -17,10 +18,18 @@ import org.apache.flink.connector.file.src.reader.SimpleStreamFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.Collector;
 
 import com.trafficanalyzer.domain.GPSRecord;
 
 public class Application {
+
+    private static final int VEHICLE_COUNT_THRESHOLD_FOR_BLOCKING = 2;  //2;
+
+    private static final double DISTANCE_THRESHOLD_METERS = 100.0;
+
+    private static final double SPEED_THRESHOLD_KMH =  10; //100.0;
+
     public static void main(String[] args) {
         // Load properties
         Properties props = new Properties();
@@ -91,7 +100,7 @@ public class Application {
                     return new GPSRecord(vehicleId, timestamp, latitude, longitude, battery, speed);
                 });
 
-        gpsStream.print();
+       // gpsStream.print();
 
         DataStream<GPSRecord> smoothedGpsStream = gpsStream
                 .keyBy(GPSRecord::getVehicleId)
@@ -104,13 +113,58 @@ public class Application {
                         (r1.getBattery() + r2.getBattery()) / 2,
                         (r1.getSpeed() + r2.getSpeed()) / 2));
 
-        smoothedGpsStream.print();
+       // smoothedGpsStream.print();
 
         FileSink<String> sink = FileSink
                 .forRowFormat(
                         new Path(outputPath),
                         new SimpleStringEncoder<String>("UTF-8"))
                 .build();
+
+        // Detect roadblock: >5 vehicles within 100m radius, within 1 min, slow
+        // movement, not at delivery
+        smoothedGpsStream
+                .filter(record -> record.getSpeed() < SPEED_THRESHOLD_KMH
+                        && !isDeliveryLocation(record.getVehicleId(),record.getLatitude(), record.getLongitude()))
+                .windowAll(org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows
+                        .of(Duration.of(1, java.time.temporal.ChronoUnit.MINUTES)))
+                .process(
+                        new org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction<GPSRecord, String, org.apache.flink.streaming.api.windowing.windows.TimeWindow>() {
+                            @Override
+                            public void process(Context context, Iterable<GPSRecord> elements, Collector<String> out) {
+                                // Collect all records in this window
+                                java.util.List<GPSRecord> list = new java.util.ArrayList<>();
+                                elements.forEach(list::add);
+
+                                boolean[] alerted = new boolean[list.size()];
+                                for (int i = 0; i < list.size(); i++) {
+                                    if (alerted[i])
+                                        continue;
+                                    GPSRecord r1 = list.get(i);
+                                    Set<String> vehicles = new HashSet<>();
+                                    vehicles.add(r1.getVehicleId());
+                                    for (int j = i + 1; j < list.size(); j++) {
+                                        GPSRecord r2 = list.get(j);
+                                        if (haversine(r1.getLatitude(), r1.getLongitude(), r2.getLatitude(),
+                                                r2.getLongitude()) <= DISTANCE_THRESHOLD_METERS) {
+                                            vehicles.add(r2.getVehicleId());
+                                            alerted[j] = true;
+                                        }
+                                    }
+                                    if (vehicles.size() > VEHICLE_COUNT_THRESHOLD_FOR_BLOCKING) {
+                                        out.collect("ROADBLOCK ALERT: " + vehicles.size() +
+                                                " vehicles stopped within 100m at (" +
+                                                String.format("%.6f, %.6f", r1.getLatitude(), r1.getLongitude()) +
+                                                ") around " +
+                                                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                                                        .withZone(java.time.ZoneId.systemDefault())
+                                                        .format(java.time.Instant.ofEpochMilli(r1.getTimestamp())));
+                                    }
+                                }
+                            }
+                        })
+                .print();
+
 
         smoothedGpsStream
                 .map(record -> String.format("%s,%s,%.6f,%.6f,%.2f,%.2f",
@@ -129,5 +183,22 @@ public class Application {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    // Helper: Haversine formula to calculate distance in meters between two lat/lon
+    // points
+    public static double haversine(double lat1, double lon1, double lat2, double lon2) {
+        final int R = 6371000; // Earth radius in meters
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                        * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    static boolean isDeliveryLocation(String vehicleId, double lat, double lon) {
+        return false;
     }
 }
