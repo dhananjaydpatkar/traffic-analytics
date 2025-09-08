@@ -113,9 +113,11 @@ public class Application {
                 .build();
 
         smoothedGpsStream
-                .map(record -> String.format("%s,%d,%.6f,%.6f,%.2f,%.2f",
+                .map(record -> String.format("%s,%s,%.6f,%.6f,%.2f,%.2f",
                         record.getVehicleId(),
-                        record.getTimestamp(),
+                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                                .withZone(java.time.ZoneId.systemDefault())
+                                .format(java.time.Instant.ofEpochMilli(record.getTimestamp())),
                         record.getLatitude(),
                         record.getLongitude(),
                         record.getBattery(),
